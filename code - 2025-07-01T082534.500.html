@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> مخطوطة: عقل التنين (قابلة للتحرير) </title>
+    
+    <!-- The entire application is in this single file -->
+
+    <style>
+        /* --- Google Fonts --- */
+        @import url('https://fonts.googleapis.com/css2?family=Marhey:wght@400;700&family=Tajawal:wght@400;500;700&display=swap');
+
+        /* --- CSS Variables (The Dragon's Palette) --- */
+        :root {
+            --bg-deep-slate: #0b0b0b; /* Even darker */
+            --bg-stone: #1a1a1a;
+            --accent-fire: #d92b2b; /* Richer red */
+            --glow-ember: #ff5e57; /* Brighter glow */
+            --text-parchment: #e0e0e0;
+            --text-muted: #707070;
+            --border-chisel: #2b2b2b;
+            --font-title-epic: 'Marhey', sans-serif;
+            --font-body-scroll: 'Tajawal', sans-serif;
+
+            --edit-border-color: #ffaa00; /* Gold/orange for edit mode */
+            --edit-bg-glow: rgba(255, 170, 0, 0.05);
+            --edit-shadow-glow: rgba(255, 170, 0, 0.3);
+        }
+
+        /* --- General Reset & Body Styling --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-body-scroll);
+            background-color: var(--bg-deep-slate);
+            color: var(--text-parchment);
+            line-height: 1.9;
+            font-size: 18px;
+            background-image: 
+                radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, transparent 70%),
+                radial-gradient(var(--border-chisel) 0.5px, transparent 0.5px);
+            background-size: 100% 100%, 20px 20px;
+            background-repeat: no-repeat, repeat;
+            background-attachment: fixed;
+            overflow-x: hidden; /* Prevent horizontal scroll from glowing borders */
+        }
+
+        /* --- Custom Scrollbar (The Dragon's Tail) --- */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-deep-slate);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-fire);
+            border-radius: 5px;
+            border: 2px solid var(--bg-deep-slate);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--glow-ember);
+        }
+        
+        /* --- Main Layout --- */
+        .manuscript-container {
+            display: flex;
+            position: relative;
+        }
+
+        .sidebar-nav {
+            width: 320px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            right: 0;
+            background: linear-gradient(to bottom, var(--bg-stone), #131313);
+            border-left: 1px solid var(--border-chisel);
+            padding: 2rem;
+            overflow-y: auto;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 1000;
+        }
+        
+        .sidebar-nav .logo {
+            font-family: var(--font-title-epic);
+            color: var(--accent-fire);
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            text-shadow: 0 0 15px var(--glow-ember);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .sidebar-nav .logo:hover {
+            color: var(--glow-ember);
+            transform: scale(1.02);
+        }
+
+        .sidebar-nav .nav-list {
+            list-style: none;
+        }
+        
+        .sidebar-nav .nav-link {
+            color: var(--text-parchment);
+            text-decoration: none;
+            font-size: 1rem;
+            display: block;
+            padding: 0.6rem 1rem;
+            margin: 0.2rem 0;
+            border-radius: 6px;
+            position: relative;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .sidebar-nav .nav-link:hover {
+            background-color: rgba(217, 43, 43, 0.1);
+            color: var(--glow-ember);
+            transform: translateX(-5px);
+        }
+
+        .sidebar-nav .nav-link.active {
+            background-color: var(--accent-fire);
+            color: #fff;
+            font-weight: 700;
+            box-shadow: 0 0 20px rgba(217, 43, 43, 0.5);
+            border-left: 3px solid var(--glow-ember); /* More distinct active border */
+        }
+        .sidebar-nav .nav-link:not(.active) {
+            border-left: 3px solid transparent; /* Ensure consistent spacing */
+        }
+
+
+        .sidebar-nav .part-heading {
+            font-family: var(--font-title-epic);
+            color: var(--text-muted);
+            margin-top: 2rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-chisel);
+            font-size: 1.2rem;
+            text-shadow: 0 0 5px rgba(112, 112, 112, 0.3);
+        }
+
+        .main-content {
+            margin-right: 320px;
+            padding: 3rem 5rem;
+            width: calc(100% - 320px);
+        }
+        
+        .content-section {
+            padding-top: 3rem;
+            margin-bottom: 4rem;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+        }
+
+        .content-section.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* Highlight editable sections in edit mode */
+        body.edit-mode .content-section[contenteditable="true"] {
+            border: 1px dashed var(--edit-border-color);
+            padding: 1rem;
+            background-color: var(--edit-bg-glow);
+            border-radius: 8px;
+            box-shadow: 0 0 10px var(--edit-shadow-glow), inset 0 0 5px var(--edit-shadow-glow);
+            outline: none; /* Remove default blue outline */
+            cursor: text;
+        }
+        /* Dim non-editable parts when edit mode is active */
+        body.edit-mode .sidebar-nav,
+        body.edit-mode #scroll-to-top {
+            opacity: 0.5;
+            pointer-events: none; /* Disable interaction */
+        }
+        body.edit-mode .main-content:before { /* Overlay to dim non-editable content */
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: 1; /* Below edit-controls but above main content */
+            pointer-events: none;
+        }
+        body.edit-mode .main-content .content-section[contenteditable="true"] {
+            position: relative; /* Bring editable sections to front */
+            z-index: 2;
+        }
+
+
+        /* --- Typography & Content Elements --- */
+        h1, h2, h3, h4 {
+            font-family: var(--font-title-epic);
+            color: var(--accent-fire);
+            text-shadow: 0 0 10px rgba(217, 43, 43, 0.4);
+            margin-bottom: 1.5rem;
+        }
+        h2 { font-size: 2.8rem; border-bottom: 2px solid var(--border-chisel); padding-bottom: 1rem; }
+        h3 { font-size: 2rem; }
+        h4 { font-size: 1.5rem; color: var(--glow-ember); }
+        
+        p, li {
+            margin-bottom: 1.2rem;
+            color: var(--text-parchment);
+        }
+
+        a {
+            color: var(--glow-ember);
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        a:hover {
+            color: var(--accent-fire);
+            text-decoration: underline;
+        }
+
+        blockquote {
+            background-color: rgba(217, 43, 43, 0.05);
+            border-right: 5px solid var(--accent-fire);
+            padding: 1.5rem 2rem;
+            margin: 2.5rem 0;
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #fff;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 0 0 15px rgba(217, 43, 43, 0.3);
+        }
+
+        code {
+            background-color: #2c2c2c;
+            padding: 0.2em 0.5em;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--glow-ember);
+            font-size: 0.9em;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        th, td {
+            border: 1px solid var(--border-chisel);
+            padding: 1rem;
+            text-align: right;
+        }
+        th {
+            background-color: var(--accent-fire);
+            font-family: var(--font-title-epic);
+            color: #fff;
+            font-size: 1.1rem;
+        }
+        td {
+            background-color: var(--bg-stone);
+        }
+        
+        /* --- Mobile Navigation & Utilities --- */
+        .mobile-nav-button {
+            display: none; /* Hidden on desktop */
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1002;
+            background: var(--bg-stone);
+            border: 1px solid var(--border-chisel);
+            color: var(--accent-fire);
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 28px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        .mobile-nav-button:hover {
+            color: var(--glow-ember);
+            border-color: var(--glow-ember);
+            transform: scale(1.05);
+        }
+
+        #scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            display: none;
+            background: var(--accent-fire);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 55px;
+            height: 55px;
+            font-size: 26px;
+            cursor: pointer;
+            z-index: 999;
+            box-shadow: 0 0 20px var(--glow-ember);
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        #scroll-to-top:hover {
+            background-color: var(--glow-ember);
+            transform: scale(1.1) rotate(360deg);
+        }
+
+        /* --- Editing Toolbar & Controls (New for in-page editing) --- */
+        .edit-controls-container {
+            position: fixed;
+            top: 15px;
+            left: 15px; /* Position on the left for editing controls */
+            z-index: 1001;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 10px;
+            background: linear-gradient(to bottom right, var(--bg-stone), #131313);
+            border: 1px solid var(--border-chisel);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            transform: translateY(-120px); /* Hidden initially */
+            opacity: 0;
+            transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+            pointer-events: none; /* Disable interaction when hidden */
+        }
+        .edit-controls-container.active {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto; /* Enable interaction when active */
+        }
+
+        .edit-button, .save-button, .cancel-button {
+            background-color: var(--accent-fire);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-family: var(--font-body-scroll);
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(217, 43, 43, 0.3);
+            flex-shrink: 0; /* Prevent shrinking on smaller screens */
+        }
+        .edit-button:hover, .save-button:hover {
+            background-color: var(--glow-ember);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 111, 96, 0.4);
+        }
+        .cancel-button {
+            background-color: var(--text-muted); /* Darker gray for cancel */
+        }
+        .cancel-button:hover {
+            background-color: #999;
+            color: white;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 5px;
+            border-right: 1px solid var(--border-chisel);
+            padding-right: 10px;
+            margin-right: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .toolbar-group:last-child {
+            border-right: none;
+            padding-right: 0;
+            margin-right: 0;
+        }
+        .toolbar-group button {
+            background-color: #3a3a3a;
+            color: var(--text-parchment);
+            border: 1px solid var(--border-chisel);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-family: var(--font-body-scroll);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 30px; /* Ensure buttons are not too small */
+            text-align: center;
+        }
+        .toolbar-group button:hover {
+            background-color: #4a4a4a;
+            color: var(--glow-ember);
+            transform: scale(1.05);
+        }
+
+        /* Status message for editor */
+        #editor-status-message {
+            position: fixed;
+            top: 80px; /* Below edit controls */
+            left: 15px;
+            z-index: 1002;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--text-parchment);
+            background-color: rgba(0,0,0,0.7);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            display: none; /* Hidden by default */
+            transition: opacity 0.3s ease-out;
+            opacity: 0;
+        }
+        #editor-status-message.show {
+            opacity: 1;
+            display: block; /* Override display:none when active */
+        }
+        #editor-status-message.success {
+            background-color: rgba(67, 160, 71, 0.2);
+            color: #81c784;
+            border: 1px solid rgba(67, 160, 71, 0.5);
+        }
+        #editor-status-message.error {
+            background-color: rgba(229, 57, 53, 0.2);
+            color: #e57373;
+            border: 1px solid rgba(229, 57, 53, 0.5);
+        }
+
+        /* --- Responsive Design Media Query --- */
+        @media (max-width: 1024px) {
+            .sidebar-nav {
+                transform: translateX(100%); /* Start hidden on the right for RTL */
+            }
+            .sidebar-nav.is-open {
+                transform: translateX(0);
+                box-shadow: -15px 0 40px rgba(0,0,0,0.7);
+            }
+
+            .main-content {
+                width: 100%;
+                margin-right: 0;
+                padding: 2rem;
+            }
+
+            .mobile-nav-button {
+                display: block;
+            }
+
+            .edit-controls-container {
+                left: 50%;
+                transform: translateX(-50%) translateY(-120px);
+                top: 15px;
+                width: calc(100% - 30px);
+                justify-content: center;
+                padding: 10px;
+                border-radius: 8px;
+            }
+            .edit-controls-container.active {
+                transform: translateX(-50%) translateY(0);
+            }
+            .toolbar-group {
+                border-right: none;
+                padding-right: 0;
+                margin-right: 0;
+                width: 100%;
+                justify-content: center;
+                gap: 8px; /* Slightly more space */
+            }
+            .toolbar-group button {
+                flex-grow: 1; /* Make buttons expand */
+                min-width: unset; /* Remove min-width override for full flex-grow */
+                padding: 8px 5px; /* Adjust padding for smaller buttons */
+            }
+            .edit-button, .save-button, .cancel-button {
+                flex-grow: 1;
+            }
+
+            #editor-status-message {
+                top: auto;
+                bottom: 15px; /* Move status to bottom on mobile */
+                left: 50%;
+                transform: translateX(-50%);
+                width: calc(100% - 30px);
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .toolbar-group {
+                flex-direction: row; /* Keep row for small buttons */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="manuscript-container">
+        
+        <button class="mobile-nav-button" id="nav-toggle-button">📜</button>
+
+        <aside class="sidebar-nav" id="sidebar">
+            <h1 class="logo" id="logo-home">عقل التنين 🐉</h1>
+            <nav>
+                <ul class="nav-list">
+                    <li><a href="#intro" class="nav-link">المقدمة: ولادة التنين</a></li>
+                    <li class="part-heading">الجزء الأول: إيقاظ الشرارة</li>
+                    <li><a href="#article1" class="nav-link">1. عقلك لم يعد كافيًا</a></li>
+                    <li><a href="#article2" class="nav-link">2. المعسكر الأول</a></li>
+                    <li><a href="#article3" class="nav-link">3. طقس الكتابة اليومية</a></li>
+                    <li><a href="#article4" class="nav-link">4. السحر الأعظم</a></li>
+
+                    <li class="part-heading">الجزء الثاني: بناء الشبكة</li>
+                    <li><a href="#article5" class="nav-link">5. خريطة الوعي</a></li>
+                    <li><a href="#article6" class="nav-link">6. إدارة المهام كالنينجا</a></li>
+                    <li><a href="#article7" class="nav-link">7. أسلحة مسبقة الصنع</a></li>
+                    <li><a href="#article8" class="nav-link">8. الهاشتاجات ضد الصفحات</a></li>
+                    
+                    <li class="part-heading">الجزء الثالث: صقل السلاح</li>
+                    <li><a href="#article9" class="nav-link">9. غيّر جلد تنينك</a></li>
+                    <li><a href="#article10" class="nav-link">10. ترسانة المحارب</a></li>
+
+                    <li class="part-heading">الجزء الرابع: ساحة المعركة</li>
+                    <li><a href="#article11" class="nav-link">11. Logseq للطلاب والباحثين</a></li>
+                    <li><a href="#article12" class="nav-link">12. Logseq لصناع المحتوى</a></li>
+                    <li><a href="#article13" class="nav-link">13. Logseq للنمو الشخصي</a></li>
+
+                    <li class="part-heading">الجزء الخامس: الوصول إلى الخلود</li>
+                    <li><a href="#article14" class="nav-link">14. أسرار Zettelkasten</a></li>
+                    <li><a href="#article15" class="nav-link">15. لا تفقد عقلك أبدًا</a></li>
+                    
+                    <li><a href="#conclusion" class="nav-link">الختام: قسم التنين الأخير</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="main-content" id="main-content-editable">
+            <!-- EDITING CONTROLS FOR THE PAGE ITSELF -->
+            <div class="edit-controls-container" id="edit-controls">
+                <button type="button" class="edit-button" id="toggle-edit-mode-btn">تفعيل وضع التحرير</button>
+                <div class="toolbar-group" id="editor-toolbar" style="display: none;">
+                    <button type="button" data-command="bold" title="غامق"><b>B</b></button>
+                    <button type="button" data-command="italic" title="مائل"><i>I</i></button>
+                    <button type="button" data-command="underline" title="تسطير"><u>U</u></button>
+                    <button type="button" data-command="insertUnorderedList" title="قائمة غير مرتبة">●</button>
+                    <button type="button" data-command="insertOrderedList" title="قائمة مرتبة">1.</button>
+                    <button type="button" data-command="justifyRight" title="محاذاة لليمين">►</button>
+                    <button type="button" data-command="justifyCenter" title="محاذاة للوسط">▬</button>
+                    <button type="button" data-command="justifyLeft" title="محاذاة لليسار">◄</button>
+                    <button type="button" data-command="formatBlock" data-value="h2" title="عنوان كبير">H2</button>
+                    <button type="button" data-command="formatBlock" data-value="h3" title="عنوان متوسط">H3</button>
+                    <button type="button" data-command="formatBlock" data-value="p" title="فقرة">P</button>
+                    <button type="button" data-command="removeFormat" title="مسح التنسيق">مسح</button>
+                </div>
+                <button type="button" class="save-button" id="save-edited-content-btn" style="display: none;">حفظ التعديلات</button>
+                <button type="button" class="cancel-button" id="cancel-edit-mode-btn" style="display: none;">إلغاء التعديلات</button>
+            </div>
+            <div id="editor-status-message"></div>
+
+            <!-- ALL YOUR MANUSCRIPT CONTENT BELOW THIS POINT (from the previous index.html) -->
+            <!-- Note: Each section will be made contenteditable='true' when edit mode is active -->
+
+            <section class="content-section" id="intro">
+                <h2>🐉🔥 المقدمة: حين يبتلعك التنين لتولد من جديد</h2>
+                <p>أغمض عينيك لحظةً… وتخيل أنك تمشي في دهاليز عقلك. تسير بين أروقةٍ مظلمة، حيث تتكدس الكتب التي قرأتها، الأفكار التي خطرت لك، المشاريع التي حلمت بها ذات مساء ثم هجرتها مع أول زخة ملل.</p>
+                <p>تسمع همساتها من بعيد، تتقاتل، تتعفن، حتى صار عقلك مقبرةً فوضويةً تزكم رائحتها روحك. تظن أنك سيد هذه المملكة؟ كلا. أنت فيها عبدٌ للنسيان، أسيرٌ لشياطين التشتت، مطاردٌ بأشباح المعلومات التي تنهشك كل يوم.</p>
+                <p>وهنا ينهض التنين. تنينٌ ليس من أساطير الصين ولا أساطير الغرب، بل تنينٌ تولده أنت من رحم فوضاك. تنينٌ يُسمى <code>Logseq</code>.</p>
+                <p>هذه السلسلة التي تقرأ مقدمتها الآن ليست مقالات عابرة، ولا دروسًا تقنيةً باهتة. إنها مخطوطة نارية ستقودك — خطوةً خطوة — لبناء «عقل ثانٍ» خارج رأسك. عقلٌ لا ينسى، لا يضيع، يربط الأفكار بخيوطٍ خفيةٍ، حتى يتحول إلى شبكةٍ عصبيةٍ تنبض تحت أصابعك، تنمو مع كل فكرة جديدة، وتكشف لك أسرارًا ما كنت لترى أطيافها وحدك.</p>
+                <blockquote>ستسير في هذه السلسلة عبر خمس عوالم مشتعلة، من إيقاظ الشرارة حتى الوصول إلى الخلود. هذه ليست دعوة للتنظيم… بل دعوة لإعادة تشكيل ذاتك من الصفر.</blockquote>
+            </section>
+
+            <section class="content-section" id="article1">
+                <h3>[[المقال 1: عقلك الحالي لم يعد كافيًا]]</h3>
+                <h4>🧠💥 لماذا تحتاج إلى «عقل ثانٍ» لتنجو في فوضى هذا العالم؟</h4>
+                <p>أغمض عينيك قليلًا… واستمع لصفير الريح الذي يجتاح أروقة رأسك. كم فكرةً لامعةً خطرت على ذهنك اليوم ثم تلاشت مثل شرارةٍ عابرة في عتمة الليل؟ كم كتابًا التهمت صفحاته بعينيك، ظانًّا أنك حصدت حكمته، ثم أفاقت ذاكرتك بعد أيام فلا تجد فيه سوى فراغٍ وصدى؟</p>
+                <p>أنت لست ضعيفًا ولا مُقصّرًا… بل أنت ضحية عصرٍ خبيث يغرقنا كل يوم بآلاف الإشعارات والتنبيهات والأخبار. المشكلة ليست فيك، بل في النظام الذي تسير به. فعقلك ليس مستودعًا لتخزين الملفات مثل قرص صلب، بل هو مصنعٌ لإنتاج الأفكار، معالجٌ يُعيد تركيب ما يدخله إلى صيغ جديدة… أما الحفظ؟ فتلك مهمةٌ تستهلكه حتى الاحتراق، فتثقل أجنحته وتحرمه من التحليق في سماوات الإبداع.</p>
+            </section>
+            
+            <section class="content-section" id="article2">
+                <h3>[[المقال 2: المعسكر الأول]]</h3>
+                <h4>🏰 تنصيب سلاحك وتجهيز أرض المعركة</h4>
+                <p>اليوم نغرس رايتنا على أول تلةٍ في هذه الحرب. أول ما يصنعه الجندي: يشحذ سلاحه، ويختار ميدان قتاله.</p>
+                <ul>
+                    <li><strong>الخطوة 1: تنصيب السلاح:</strong> توجه إلى <a href="https://logseq.com/" target="_blank">Logseq.com</a> وحمّل نسختك — كمن يرفع نصلًا من نار.</li>
+                    <li><strong>الخطوة 2: بناء أرض المعركة:</strong> عند فتح Logseq، اضغط <code>Add new graph</code>، واختر مجلدًا فارغًا — هذا هو حقل معاركك القادمة.</li>
+                    <li><strong>الخطوة 3: استكشاف القلعة:</strong> تعرف على الشريط الجانبي الأيسر (فهرسك)، صفحة العمل الرئيسية (ميدانك)، والشريط الجانبي الأيمن (برج مراقبتك).</li>
+                    <li><strong>الخطوة 4: كتابة أول تعويذة:</strong> في صفحة اليوم، ابدأ بالكتابة. <code>Enter</code> لسطر جديد، <code>Tab</code> لجعله تابعًا، و <code>Shift + Tab</code> لإعادته.</li>
+                </ul>
+            </section>
+
+            <section class="content-section" id="article3">
+                <h3>[[المقال 3: طقس الكتابة اليومية]]</h3>
+                <h4>🔥 فن إلقاء كل شيء في النار</h4>
+                <p>صفحة اليوميات هي مذبحٌ تُحرق عليه كل فكرةٍ وكل ملاحظة وكل ألم. هكذا تبدأ:</p>
+                <ul>
+                    <li><strong>المهام اليومية ✅:</strong> استخدم <code>/TODO</code> لتسجيل مهامك.</li>
+                    <li><strong>الأفكار البرقية 💡:</strong> سجل أي فكرة خاطفة لمشروع أو قصة.</li>
+                    <li><strong>مقتطفات من محتوى 📚:</strong> لخص كتابًا أو فيديو، واربطه بصفحته الخاصة مثل <code>[[كتاب العادات الذرية]]</code>.</li>
+                    <li><strong>يوميات نفسية ✍️:</strong> فضفض لنفسك وأخرج شوائب قلبك.</li>
+                </ul>
+            </section>
+
+            <section class="content-section" id="article4">
+                <h3>[[المقال 4: السحر الأعظم]]</h3>
+                <h4>🪄 كيف تجعل أفكارك تتحدث مع بعضها؟</h4>
+                <p>بدون روابط، تظل أفكارك جزرًا منعزلة. هنا يبدأ فن النسج الحقيقي للشبكة.</p>
+                <ul>
+                    <li><strong>روابط الصفحات [[Page Links]]:</strong> أي كلمة بين <code>[[ ]]</code> تصبح بوابة سحرية تجمع كل ما ذكرته عنها. مثال: <code>قرأت عن [[الذكاء الصناعي]] وتأثيره على [[مستقبل الوظائف]]</code>.</li>
+                    <li><strong>روابط النقاط ((Block References)):</strong> للإشارة إلى فكرة محددة، اضغط كليك يمين على النقطة واختر <code>Copy block ref</code> والصقها حيث شئت. إذا عدّلتها في الأصل، تتغير في كل مكان.</li>
+                </ul>
+            </section>
+
+            <section class="content-section" id="article5">
+                <h3>[[المقال 5: خريطة الوعي]]</h3>
+                <h4>🕸️ حين ترى عقلك ينبض أمامك</h4>
+                <p><code>Graph View</code> هي مرآةٌ سحريةٌ تعرض لك عالَمك الداخلي. اضغط الأيقونة، وستنكشف أمامك مجرةٌ كاملةٌ من النقاط والخطوط. النقاط هي صفحاتك، والخطوط هي الروابط بينها. هنا تكتشف محاورك الفكرية، وتنقذ أفكارك الوحيدة، وتكتشف روابط غير متوقعة.</p>
+            </section>
+
+            <section class="content-section" id="article6">
+                <h3>[[المقال 6: إدارة المهام بأسلوب النينجا]]</h3>
+                <h4>✅ لا تفلت منك شاردة</h4>
+                <p>العقل الثاني ليس فقط حديقة فلسفية، بل دفتر مهام محارب.</p>
+                <ul>
+                    <li><strong>الأساس:</strong> <code>/TODO</code> لتحويل أي سطر لمهمة.</li>
+                    <li><strong>الأولويات:</strong> استخدم <code>/NOW</code> للمهام العاجلة، و <code>/LATER</code> للمؤجلة.</li>
+                    <li><strong>لوحة التحكم:</strong> أنشئ صفحة <code>[[لوحة التحكم]]</code> والصق فيها هذه الأكواد لجمع مهامك تلقائيًا:
+                        <br><code>{{query (and (todo now) (not (todo done)))}}</code>
+                        <br><code>{{query (and (todo later) (not (todo done)))}}</code>
+                    </li>
+                </ul>
+            </section>
+
+            <section class="content-section" id="article7">
+                <h3>[[المقال 7: أسلحة التنين مسبقة الصنع]]</h3>
+                <h4>⚙️ القوالب: نصوص جاهزة تنقذك في قلب المعركة</h4>
+                <p>القالب هو هيكل جاهز تستدعيه بكلمة سحرية.</p>
+                <ol>
+                    <li><strong>ابنِ المخزن:</strong> أنشئ صفحة مثل <code>[[قالب: المراجعة اليومية]]</code> واكتب فيها الهيكل.</li>
+                    <li><strong>اكتب التعويذة:</strong> في أول نقطة، اكتب <code>template:: المراجعة اليومية</code>.</li>
+                    <li><strong>استدعها:</strong> في أي مكان، اكتب <code>/template</code> واختر قالبك.</li>
+                </ol>
+            </section>
+
+            <section class="content-section" id="article8">
+                <h3>[[المقال 8: الهاشتاجات ضد الصفحات]]</h3>
+                <h4>⚔️ معركة التنظيم الكبرى</h4>
+                <p>متى تستخدم #tag ومتى [[Page]]؟ إنها ليست مسألة تقنية، بل استراتيجية تفكير.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الاستخدام</th>
+                            <th>الأداة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>الكيانات والأسماء (مشاريع، كتب، مفاهيم)</td>
+                            <td><code>[[صفحة]]</code></td>
+                        </tr>
+                        <tr>
+                            <td>الحالات والصفات (مهم، فكرة، اقتباس)</td>
+                            <td><code>#هاشتاج</code></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <blockquote>"استخدم [[الصفحات]] للأسماء، واستخدم #الهاشتاجات للصفات والأحوال."</blockquote>
+            </section>
+            
+            <section class="content-section" id="article9">
+                <h3>[[المقال 9: غيّر جلد تنينك]]</h3>
+                <h4>🎨 دليل الثيمات</h4>
+                <p>العقل الثاني هو معبدك الشخصي. اذهب إلى <code>... > Plugins > Marketplace > Themes</code> واختر الثيم الذي يشبه روحك.</p>
+                <ul>
+                    <li><strong>Catppuccin ☕️:</strong> هادئ وجميل.</li>
+                    <li><strong>Dracula 🧛:</strong> تقني وأنيق.</li>
+                    <li><strong>Things 📝:</strong> نظيف وبسيط.</li>
+                    <li><strong>Cobalt 🔵:</strong> احترافي وأزرق.</li>
+                    <li><strong>Bear 🐻:</strong> دافئ ومريح.</li>
+                </ul>
+            </section>
+
+            <section class="content-section" id="article10">
+                <h3>[[المقال 10: ترسانة المحارب]]</h3>
+                <h4>⚔️ أقوى 7 إضافات</h4>
+                <p>الإضافات (Plugins) هي شظايا سحرية تدمجها مع تنينك ليصير وحشًا. اذهب إلى <code>Marketplace > Plugins</code> لتركيبها.</p>
+                <ol>
+                    <li><strong>Journals Calendar 🗓️:</strong> تقويم للتنقل بين اليوميات.</li>
+                    <li><strong>Logseq-TODO ✅:</strong> نظام مهام محسن.</li>
+                    <li><strong>Kanban 📊:</strong> لوحات كانبان لإدارة المشاريع.</li>
+                    <li><strong>Readwise Official 📚:</strong> سحب الملاحظات من Kindle تلقائيًا.</li>
+                    <li><strong>Awesome Styler 🎨:</strong> تخصيص بصري بدون كود.</li>
+                    <li><strong>Logseq-Git 💾:</strong> نسخ احتياطي على GitHub.</li>
+                    <li><strong>Doc-View-PDF 📑:</strong> فتح ملفات PDF وتلخيصها جنبًا إلى جنب.</li>
+                </ol>
+            </section>
+
+            <section class="content-section" id="article11">
+                <h3>[[المقال 11: Logseq للطلاب والباحثين]]</h3>
+                <h4>🎓 تحويل المذاكرة من جحيم إلى اكتشاف</h4>
+                <p>لا تدون بلا روح. فكك المحاضرات إلى نقاط، اربط المفاهيم بصفحاتها، وحاور كتبك باستخدام إضافة <code>Doc-View-PDF</code>. للباحثين، اربط مكتبة Zotero لتصبح إدارة المراجع سحرًا.</p>
+            </section>
+            
+            <section class="content-section" id="article12">
+                <h3>[[المقال 12: Logseq لصناع المحتوى]]</h3>
+                <h4>⚙️ بناء آلة أفكار لا تتوقف</h4>
+                <p>حوّل الفوضى الإبداعية إلى مصنع منظم. استخدم هاشتاج <code>#فكرة</code> كصندوق كنوز، حوّل الأفكار الواعدة إلى صفحات خاصة بها، ثم ابنِ هيكل المحتوى باستخدام ميزة الـ Outliner قبل الكتابة النهائية.</p>
+            </section>
+
+            <section class="content-section" id="article13">
+                <h3>[[المقال 13: Logseq للنمو الشخصي]]</h3>
+                <h4>🏛️ كن المهندس المعماري لحياتك</h4>
+                <p>حياتك مشروع هندسي. تتبع عاداتك بقالب يومي، اكتب يوميات عميقة مع هاشتاجات مثل <code>#شعور</code> أو <code>#درس_حياتي</code>، واربط مهامك اليومية بصفحات أهدافك الكبرى لتبقى على المسار.</p>
+            </section>
+
+            <section class="content-section" id="article14">
+                <h3>[[المقال 14: أسرار Zettelkasten]]</h3>
+                <h4>💎 بناء شبكة من جواهر الفكر</h4>
+                <p>Zettelkasten هي طريقة ألمانية عتيقة لبناء شبكة من الأفكار الذرية. المبدأ هو أن تشرح كل فكرة بأسلوبك في ملاحظة منفصلة، وتربطها صراحة بملاحظات أخرى.</p>
+                <ul>
+                    <li><strong><code>#fleeting</code> 🌬️:</strong> الأفكار السريعة في يومك.</li>
+                    <li><strong><code>#lit</code> 📚:</strong> ملاحظاتك من مصدر معين (كتاب، مقال).</li>
+                    <li><strong><code>#perm</code> 💎:</strong> جواهر نظامك. تأخذ فكرة من النوعين السابقين، تضعها في صفحة منفصلة، تشرحها، وتربطها.</li>
+                </ul>
+            </section>
+
+            <section class="content-section" id="article15">
+                <h3>[[المقال 15: لا تفقد عقلك أبدًا]]</h3>
+                <h4>💾 أسرار المزامنة والنسخ الاحتياطي</h4>
+                <p>ما قيمة إمبراطورية فكرية إن كانت ستضيع؟ لتأمين مملكتك:</p>
+                <ol>
+                    <li><strong>الخدمات السحابية:</strong> ضع مجلد الـ Graph في iCloud أو Google Drive للمزامنة والحماية.</li>
+                    <li><strong>Syncthing:</strong> للمزامنة المباشرة بين أجهزتك بدون وسيط، آمن ومشفر.</li>
+                    <li><strong>Logseq-Git:</strong> لربط ملاحظاتك بـ GitHub، مما يمنحك سجلًا تاريخيًا لا يُمحى.</li>
+                </ol>
+            </section>
+
+            <section class="content-section" id="conclusion">
+                <h2>👑 ختام المخطوطة: قسم التنين الأخير</h2>
+                <p>أيها الراحل في دروب الفوضى… لقد سرت معي خطوة بخطوة في هذه المخطوطة النارية. أنت لم تعد ذلك الإنسان القديم الذي ينسى ما يقرأ، ويقبر ما يفكر، ويعيش أسيرًا لنسيانه. بل صرت معماريًا يبني عقله الثاني حجرًا فوق حجر.</p>
+                <blockquote>فاسمعني جيدًا الآن… هنا تقف على الحافة الأخيرة. إما أن تهوي إلى قاع المعتاد مرة أخرى، أو أن تقسم لي قسمًا أسودًا لا رجعة فيه:</blockquote>
+                <p><strong>✋🏻 «أقسم بدم التنين الذي يسري في عروقي… أن لا أدع يومًا يمر دون أن أضيف حجرًا جديدًا إلى عقلي الثاني. أن أقدّس شبكة أفكاري وأحميها كما أحمي شرفي. وأن أجعل من Logseq سلاحًا لا يصدأ، يُقطع به جهلي وكسلي ونسياني.»</strong></p>
+                <p>وإن فعلت… فاعلم أنك ستصبح من القلّة التي تسير في هذا العالم ليس بعقل واحد، بل بجيشٍ كامل من العقول.</p>
+                <p>انتهت المخطوطة… لكن أسطورتك بدأت الآن فقط. 🐉🔥🖤</p>
+            </section>
+
+        </main>
+
+    </div>
+
+    <button id="scroll-to-top" title="صعود للعرش">▲</button>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebar = document.getElementById('sidebar');
+            const navToggleButton = document.getElementById('nav-toggle-button');
+            const navLinks = document.querySelectorAll('.nav-link');
+            const contentSections = document.querySelectorAll('.content-section');
+            const scrollToTopButton = document.getElementById('scroll-to-top');
+            const logo = document.getElementById('logo-home');
+
+            // --- Editor Elements ---
+            const toggleEditModeBtn = document.getElementById('toggle-edit-mode-btn');
+            const saveEditedContentBtn = document.getElementById('save-edited-content-btn');
+            const cancelEditModeBtn = document.getElementById('cancel-edit-mode-btn');
+            const editControlsContainer = document.getElementById('edit-controls');
+            const editorToolbar = document.getElementById('editor-toolbar');
+            const editorStatusMessage = document.getElementById('editor-status-message');
+            const mainContentEditable = document.getElementById('main-content-editable');
+            
+            let isEditMode = false;
+            let originalMainContentHtml = ''; // To store the HTML of main-content before editing
+
+            // --- Helper to update editor status messages ---
+            let statusTimeout;
+            const updateEditorStatus = (message, type = '') => {
+                clearTimeout(statusTimeout); // Clear any existing timeout
+                editorStatusMessage.textContent = message;
+                editorStatusMessage.className = 'show'; // Show and apply base styling
+                if (type) {
+                    editorStatusMessage.classList.add(type); // Add specific type class
+                }
+                statusTimeout = setTimeout(() => {
+                    editorStatusMessage.classList.remove('show');
+                    // Optionally clear text after fade out
+                    setTimeout(() => editorStatusMessage.textContent = '', 300);
+                }, 3000); // Message disappears after 3 seconds
+            };
+
+            // --- Mobile Nav Toggle ---
+            const toggleSidebar = () => {
+                sidebar.classList.toggle('is-open');
+            };
+            navToggleButton.addEventListener('click', toggleSidebar);
+
+            // Close mobile nav on link click
+            navLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (sidebar.classList.contains('is-open')) {
+                        toggleSidebar();
+                    }
+                });
+            });
+            
+            // Go to top when logo is clicked
+            logo.addEventListener('click', () => {
+                 window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+
+            // --- Scroll-to-Top Button Logic ---
+            const handleScroll = () => {
+                if (window.scrollY > 400) {
+                    scrollToTopButton.style.display = 'block';
+                } else {
+                    scrollToTopButton.style.display = 'none';
+                }
+            };
+            window.addEventListener('scroll', handleScroll);
+            scrollToTopButton.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+            // --- Intersection Observer for animations and active link highlighting ---
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px 0px -50% 0px',
+                threshold: 0
+            };
+            
+            const sectionObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const id = entry.target.getAttribute('id');
+                    const correspondingLink = document.querySelector(`.nav-link[href="#${id}"]`);
+                    
+                    // Add fade-in animation class if not in edit mode
+                    if (entry.isIntersecting && !isEditMode) {
+                        entry.target.classList.add('is-visible');
+                    }
+
+                    // Highlight the active navigation link if not in edit mode
+                    if (entry.isIntersecting && correspondingLink && !isEditMode) {
+                       navLinks.forEach(link => link.classList.remove('active'));
+                       correspondingLink.classList.add('active');
+                    }
+                });
+            }, observerOptions);
+
+            contentSections.forEach(section => {
+                sectionObserver.observe(section);
+            });
+
+            // --- EDITOR LOGIC ---
+
+            // Function to enable/disable contenteditable
+            const toggleContentEditable = (enable) => {
+                contentSections.forEach(section => {
+                    section.setAttribute('contenteditable', enable ? 'true' : 'false');
+                });
+                isEditMode = enable;
+                document.body.classList.toggle('edit-mode', enable); // Add/remove class to body for broader styling
+            };
+
+            // Show/Hide editor controls and buttons
+            const updateControlButtonsVisibility = () => {
+                if (isEditMode) {
+                    toggleEditModeBtn.style.display = 'none';
+                    saveEditedContentBtn.style.display = 'block';
+                    cancelEditModeBtn.style.display = 'block';
+                    editorToolbar.style.display = 'flex'; // Show toolbar
+                    editControlsContainer.classList.add('active');
+                } else {
+                    toggleEditModeBtn.style.display = 'block';
+                    saveEditedContentBtn.style.display = 'none';
+                    cancelEditModeBtn.style.display = 'none';
+                    editorToolbar.style.display = 'none'; // Hide toolbar
+                    editControlsContainer.classList.remove('active');
+                }
+            };
+
+            // Handle 'Edit Mode' button click
+            toggleEditModeBtn.addEventListener('click', () => {
+                originalMainContentHtml = mainContentEditable.innerHTML; // Save current state
+                toggleContentEditable(true);
+                updateControlButtonsVisibility();
+                updateEditorStatus('وضع التحرير مفعل. انقر على أي نص لتعديله.', 'success');
+            });
+
+            // Handle 'Cancel' button click
+            cancelEditModeBtn.addEventListener('click', () => {
+                mainContentEditable.innerHTML = originalMainContentHtml; // Revert changes
+                toggleContentEditable(false);
+                updateControlButtonsVisibility();
+                updateEditorStatus('تم إلغاء التعديلات.', 'error');
+            });
+
+            // Handle toolbar button clicks (formatting)
+            editorToolbar.addEventListener('click', (e) => {
+                const button = e.target.closest('button');
+                if (button) {
+                    const command = button.dataset.command;
+                    const value = button.dataset.value;
+                    // document.execCommand is used for basic rich text editing functionality
+                    document.execCommand(command, false, value);
+                    // Ensure focus remains on the editable area after command
+                    if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') {
+                        document.activeElement.focus();
+                    }
+                }
+            });
+
+            // Handle 'Save' button click (download the modified HTML)
+            saveEditedContentBtn.addEventListener('click', () => {
+                toggleContentEditable(false); // Disable editing before saving
+                
+                // Get the current inner HTML of the main content area after edits
+                const editedMainContentHtml = mainContentEditable.innerHTML;
+
+                // Clone the current document to safely modify it for saving
+                const tempDoc = document.documentElement.cloneNode(true);
+                
+                // Find the main-content element in the cloned document
+                const mainContentInTempDoc = tempDoc.querySelector('.main-content');
+
+                if (mainContentInTempDoc) {
+                    // Replace its content with the edited content
+                    mainContentInTempDoc.innerHTML = editedMainContentHtml;
+
+                    // Get the modified full HTML string
+                    const modifiedFullHtml = `<!DOCTYPE html>\n` + tempDoc.outerHTML;
+
+                    // Create a Blob and download the file
+                    const blob = new Blob([modifiedFullHtml], { type: 'text/html;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'manuscript_dragon_edited.html'; // Suggested filename
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    updateEditorStatus('تم حفظ التعديلات بنجاح! (تم تنزيل نسخة جديدة).', 'success');
+                    originalMainContentHtml = editedMainContentHtml; // Update original content after successful save
+                } else {
+                    updateEditorStatus('خطأ في حفظ الملف: لم يتم العثور على العنصر الرئيسي.', 'error');
+                }
+                updateControlButtonsVisibility();
+            });
+
+            // Initial setup: ensure controls are hidden and page is not editable
+            toggleContentEditable(false);
+            updateControlButtonsVisibility();
+        });
+    </script>
+</body>
+</html>
